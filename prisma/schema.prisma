@@ -1,0 +1,103 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// 메뉴 관리
+model MenuItem {
+  id          String   @id @default(cuid())
+  name        String
+  category    String
+  price       Int
+  description String?
+  available   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  orderItems  OrderItem[]
+}
+
+// 주문 관리
+model Order {
+  id          String      @id @default(cuid())
+  orderNumber String      @unique
+  status      String      @default("pending") // pending, preparing, completed, cancelled
+  totalAmount Int
+  paymentMethod String?
+  customerId  String?
+  tableNumber String?
+  notes       String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  
+  customer    Customer?   @relation(fields: [customerId], references: [id])
+  items       OrderItem[]
+  
+  @@index([orderNumber])
+  @@index([createdAt])
+}
+
+// 주문 상품
+model OrderItem {
+  id         String   @id @default(cuid())
+  orderId    String
+  menuItemId String
+  quantity   Int
+  price      Int
+  createdAt  DateTime @default(now())
+  
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id])
+  
+  @@index([orderId])
+}
+
+// 고객 관리
+model Customer {
+  id          String   @id @default(cuid())
+  name        String
+  phone       String   @unique
+  email       String?
+  address     String?
+  totalOrders Int      @default(0)
+  totalSpent  Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  orders      Order[]
+  
+  @@index([phone])
+}
+
+// 재고 관리
+model Inventory {
+  id          String   @id @default(cuid())
+  itemName    String
+  quantity    Int
+  unit        String
+  minQuantity Int      @default(0)
+  lastRestocked DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([itemName])
+}
+
+// 판매 통계 (일일 집계)
+model DailySales {
+  id          String   @id @default(cuid())
+  date        DateTime @unique
+  totalOrders Int      @default(0)
+  totalRevenue Int     @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([date])
+}
