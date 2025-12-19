@@ -23,13 +23,48 @@ interface Order {
   }[];
 }
 
+interface MenuItem {
+  id: string;
+  name: string;
+  price: number;
+  category: string;
+  available: boolean;
+}
+
+interface OrderItem {
+  menuItemId: string;
+  quantity: number;
+}
+
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isAddingOrder, setIsAddingOrder] = useState(false);
+  const [newOrder, setNewOrder] = useState({
+    tableNumber: '',
+    notes: '',
+    items: [] as OrderItem[]
+  });
+  const [selectedMenu, setSelectedMenu] = useState('');
+  const [quantity, setQuantity] = useState(1);
 
   useEffect(() => {
     fetchOrders();
+    fetchMenuItems();
   }, []);
+
+  const fetchMenuItems = async () => {
+    try {
+      const response = await fetch('/api/menu');
+      if (response.ok) {
+        const data = await response.json();
+        setMenuItems(data.filter((item: MenuItem) => item.available));
+      }
+    } catch (error) {
+      console.error('메뉴 로드 실패:', error);
+    }
+  };
 
   const fetchOrders = async () => {
     try {
@@ -42,6 +77,80 @@ export default function OrdersPage() {
       console.error('주문 로드 실패:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const addItemToOrder = () => {
+    if (!selectedMenu) {
+      alert('메뉴를 선택해주세요.');
+      return;
+    }
+
+    const existingItem = newOrder.items.find(item => item.menuItemId === selectedMenu);
+    if (existingItem) {
+      setNewOrder({
+        ...newOrder,
+        items: newOrder.items.map(item =>
+          item.menuItemId === selectedMenu
+            ? { ...item, quantity: item.quantity + quantity }
+            : item
+        )
+      });
+    } else {
+      setNewOrder({
+        ...newOrder,
+        items: [...newOrder.items, { menuItemId: selectedMenu, quantity }]
+      });
+    }
+
+    setSelectedMenu('');
+    setQuantity(1);
+  };
+
+  const removeItemFromOrder = (menuItemId: string) => {
+    setNewOrder({
+      ...newOrder,
+      items: newOrder.items.filter(item => item.menuItemId !== menuItemId)
+    });
+  };
+
+  const calculateTotal = () => {
+    return newOrder.items.reduce((sum, item) => {
+      const menuItem = menuItems.find(m => m.id === item.menuItemId);
+      return sum + (menuItem ? menuItem.price * item.quantity : 0);
+    }, 0);
+  };
+
+  const createOrder = async () => {
+    if (newOrder.items.length === 0) {
+      alert('주문할 메뉴를 추가해주세요.');
+      return;
+    }
+
+    try {
+      const orderData = {
+        tableNumber: newOrder.tableNumber || undefined,
+        notes: newOrder.notes || undefined,
+        items: newOrder.items
+      };
+
+      const response = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(orderData)
+      });
+
+      if (response.ok) {
+        await fetchOrders();
+        setNewOrder({ tableNumber: '', notes: '', items: [] });
+        setIsAddingOrder(false);
+        alert('주문이 등록되었습니다!');
+      } else {
+        alert('주문 등록에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('주문 등록 실패:', error);
+      alert('주문 등록에 실패했습니다.');
     }
   };
 
@@ -74,11 +183,19 @@ export default function OrdersPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 py-8">
-        <div className="flex items-center mb-8">
-          <Link href="/" className="mr-4 text-gray-600 hover:text-gray-900">
-            ← 홈으로
-          </Link>
-          <h1 className="text-4xl font-bold text-gray-900">📋 주문 관리</h1>
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center">
+            <Link href="/" className="mr-4 text-gray-600 hover:text-gray-900">
+              ← 홈으로
+            </Link>
+            <h1 className="text-4xl font-bold text-gray-900">📋 주문 관리</h1>
+          </div>
+          <button
+            onClick={() => setIsAddingOrder(!isAddingOrder)}
+            className="px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-semibold"
+          >
+            {isAddingOrder ? '취소' : '+ 새 주문 등록'}
+          </button>
         </div>
 
         {/* 통계 요약 */}
@@ -102,6 +219,113 @@ export default function OrdersPage() {
             </p>
           </div>
         </div>
+
+        {/* 새 주문 등록 폼 */}
+        {isAddingOrder && (
+          <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
+            <h2 className="text-2xl font-bold mb-4">새 주문 등록</h2>
+            
+            {/* 테이블 번호 및 메모 */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <input
+                type="text"
+                placeholder="테이블 번호 (선택)"
+                value={newOrder.tableNumber}
+                onChange={(e) => setNewOrder({ ...newOrder, tableNumber: e.target.value })}
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              />
+              <input
+                type="text"
+                placeholder="메모 (선택)"
+                value={newOrder.notes}
+                onChange={(e) => setNewOrder({ ...newOrder, notes: e.target.value })}
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              />
+            </div>
+
+            {/* 메뉴 추가 */}
+            <div className="border-t pt-4 mb-4">
+              <h3 className="text-lg font-semibold mb-3">메뉴 선택</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <select
+                  value={selectedMenu}
+                  onChange={(e) => setSelectedMenu(e.target.value)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent md:col-span-2"
+                >
+                  <option value="">메뉴를 선택하세요</option>
+                  {menuItems.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name} - {item.price.toLocaleString()}원
+                    </option>
+                  ))}
+                </select>
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    min="1"
+                    value={quantity}
+                    onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
+                    className="w-20 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  />
+                  <button
+                    onClick={addItemToOrder}
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold"
+                  >
+                    추가
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* 선택된 메뉴 목록 */}
+            {newOrder.items.length > 0 && (
+              <div className="border-t pt-4 mb-4">
+                <h3 className="text-lg font-semibold mb-3">주문 내역</h3>
+                <div className="space-y-2">
+                  {newOrder.items.map((item) => {
+                    const menuItem = menuItems.find(m => m.id === item.menuItemId);
+                    if (!menuItem) return null;
+                    return (
+                      <div key={item.menuItemId} className="flex justify-between items-center bg-gray-50 p-3 rounded-lg">
+                        <div>
+                          <span className="font-semibold">{menuItem.name}</span>
+                          <span className="text-gray-600 ml-2">x {item.quantity}</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="font-bold text-orange-600">
+                            {(menuItem.price * item.quantity).toLocaleString()}원
+                          </span>
+                          <button
+                            onClick={() => removeItemFromOrder(item.menuItemId)}
+                            className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition-colors text-sm"
+                          >
+                            삭제
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="mt-4 pt-4 border-t flex justify-between items-center">
+                  <span className="text-xl font-bold">총 금액</span>
+                  <span className="text-2xl font-bold text-orange-600">
+                    {calculateTotal().toLocaleString()}원
+                  </span>
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={createOrder}
+                disabled={newOrder.items.length === 0}
+                className="flex-1 px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-semibold disabled:bg-gray-300 disabled:cursor-not-allowed"
+              >
+                주문 등록
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* 주문 목록 */}
         <div className="grid gap-4">
