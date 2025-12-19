@@ -202,12 +202,12 @@ export default function MenuPage() {
                 <button
                   onClick={() => toggleAvailability(item.id)}
                   className={`flex-1 px-4 py-2 rounded-lg font-semibold transition-colors ${
-                    item.isAvailable
+                    item.available
                       ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                       : 'bg-green-600 text-white hover:bg-green-700'
                   }`}
                 >
-                  {item.isAvailable ? '품절 처리' : '판매 재개'}
+                  {item.available ? '품절 처리' : '판매 재개'}
                 </button>
                 <button
                   onClick={() => deleteMenuItem(item.id)}
