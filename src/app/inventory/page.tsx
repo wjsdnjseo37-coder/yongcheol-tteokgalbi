@@ -1,166 +1,219 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import Link from "next/link";
 
-export default function Home() {
-  const stores = [
-    { id: '1', name: '강남점', todayRevenue: 1250000, todayOrders: 58, status: 'open' },
-    { id: '2', name: '홍대점', todayRevenue: 980000, todayOrders: 45, status: 'open' },
-    { id: '3', name: '신촌점', todayRevenue: 1100000, todayOrders: 52, status: 'open' },
-    { id: '4', name: '잠실점', todayRevenue: 850000, todayOrders: 38, status: 'open' },
-  ];
+interface InventoryItem {
+  id: string;
+  itemName: string;
+  quantity: number;
+  unit: string;
+  minQuantity: number;
+  lastRestocked: string | null;
+}
 
-  const totalRevenue = stores.reduce((sum, store) => sum + store.todayRevenue, 0);
-  const totalOrders = stores.reduce((sum, store) => sum + store.todayOrders, 0);
+export default function InventoryPage() {
+  const [items, setItems] = useState<InventoryItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isAddingNew, setIsAddingNew] = useState(false);
+  const [newItem, setNewItem] = useState({
+    itemName: '',
+    quantity: 0,
+    unit: '',
+    minQuantity: 0
+  });
+
+  useEffect(() => {
+    fetchItems();
+  }, []);
+
+  const fetchItems = async () => {
+    try {
+      const response = await fetch('/api/inventory');
+      if (response.ok) {
+        const data = await response.json();
+        setItems(data);
+      }
+    } catch (error) {
+      console.error('재고 로드 실패:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const addItem = async () => {
+    if (!newItem.itemName || !newItem.unit) {
+      alert('품목명과 단위를 입력해주세요.');
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/inventory', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newItem)
+      });
+
+      if (response.ok) {
+        await fetchItems();
+        setNewItem({ itemName: '', quantity: 0, unit: '', minQuantity: 0 });
+        setIsAddingNew(false);
+      }
+    } catch (error) {
+      console.error('재고 추가 실패:', error);
+      alert('재고 추가에 실패했습니다.');
+    }
+  };
+
+  const lowStockItems = items.filter(item => item.quantity <= item.minQuantity);
+  const totalItems = items.length;
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-xl text-gray-600">로딩 중...</div>
+      </div>
+    );
+  }
+
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-50">
+    <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 py-8">
-        <header className="mb-12 text-center">
-          <h1 className="text-5xl font-bold text-gray-900 mb-4">
-            🏢 용철떡갈비 본사 관리 시스템
-          </h1>
-          <p className="text-xl text-gray-600">
-            전체 매장을 한눈에 관리하고 모니터링하세요
-          </p>
-        </header>
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center">
+            <Link href="/" className="mr-4 text-gray-600 hover:text-gray-900">
+              ← 홈으로
+            </Link>
+            <h1 className="text-4xl font-bold text-gray-900">📦 재고 관리</h1>
+          </div>
+          <button
+            onClick={() => setIsAddingNew(!isAddingNew)}
+            className="px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-semibold"
+          >
+            {isAddingNew ? '취소' : '+ 새 재고 추가'}
+          </button>
+        </div>
 
-        {/* 전체 통계 요약 */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12 max-w-6xl mx-auto">
+        {/* 통계 요약 */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className="bg-white rounded-xl shadow-lg p-6">
-            <h3 className="text-gray-600 mb-2">전체 매장 수</h3>
-            <p className="text-4xl font-bold text-blue-600">{stores.length}개</p>
+            <h3 className="text-gray-600 mb-2">총 품목 수</h3>
+            <p className="text-4xl font-bold text-blue-600">{totalItems}개</p>
           </div>
           <div className="bg-white rounded-xl shadow-lg p-6">
-            <h3 className="text-gray-600 mb-2">오늘 전체 매출</h3>
-            <p className="text-4xl font-bold text-orange-600">
-              {totalRevenue.toLocaleString()}원
+            <h3 className="text-gray-600 mb-2">재고 부족 품목</h3>
+            <p className="text-4xl font-bold text-red-600">{lowStockItems.length}개</p>
+          </div>
+          <div className="bg-white rounded-xl shadow-lg p-6">
+            <h3 className="text-gray-600 mb-2">정상 재고</h3>
+            <p className="text-4xl font-bold text-green-600">{totalItems - lowStockItems.length}개</p>
+          </div>
+        </div>
+
+        {/* 새 재고 추가 폼 */}
+        {isAddingNew && (
+          <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
+            <h2 className="text-2xl font-bold mb-4">새 재고 등록</h2>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <input
+                type="text"
+                placeholder="품목명"
+                value={newItem.itemName}
+                onChange={(e) => setNewItem({ ...newItem, itemName: e.target.value })}
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              />
+              <input
+                type="number"
+                placeholder="수량"
+                value={newItem.quantity}
+                onChange={(e) => setNewItem({ ...newItem, quantity: parseInt(e.target.value) || 0 })}
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              />
+              <input
+                type="text"
+                placeholder="단위 (kg, 개 등)"
+                value={newItem.unit}
+                onChange={(e) => setNewItem({ ...newItem, unit: e.target.value })}
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              />
+              <input
+                type="number"
+                placeholder="최소 수량"
+                value={newItem.minQuantity}
+                onChange={(e) => setNewItem({ ...newItem, minQuantity: parseInt(e.target.value) || 0 })}
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              />
+            </div>
+            <button
+              onClick={addItem}
+              className="mt-4 px-6 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-semibold"
+            >
+              재고 추가
+            </button>
+          </div>
+        )}
+
+        {/* 재고 부족 경고 */}
+        {lowStockItems.length > 0 && (
+          <div className="bg-red-50 border-l-4 border-red-500 p-6 mb-8 rounded-lg">
+            <h3 className="text-lg font-bold text-red-800 mb-2">⚠️ 재고 부족 경고</h3>
+            <p className="text-red-700">
+              {lowStockItems.map(item => item.itemName).join(', ')} 품목의 재고가 부족합니다.
             </p>
           </div>
-          <div className="bg-white rounded-xl shadow-lg p-6">
-            <h3 className="text-gray-600 mb-2">오늘 전체 주문</h3>
-            <p className="text-4xl font-bold text-green-600">{totalOrders}건</p>
-          </div>
-        </div>
+        )}
 
-        {/* 매장별 현황 */}
-        <div className="max-w-6xl mx-auto mb-12">
-          <h2 className="text-3xl font-bold text-gray-900 mb-6">📍 매장별 현황</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {stores.map((store) => (
-              <div
-                key={store.id}
-                className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-all"
-              >
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <h3 className="text-2xl font-bold text-gray-900">{store.name}</h3>
-                    <span className={`inline-block px-3 py-1 rounded-full text-sm font-semibold mt-2 ${
-                      store.status === 'open' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                    }`}>
-                      {store.status === 'open' ? '영업중' : '마감'}
-                    </span>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">오늘 매출</span>
-                    <span className="text-xl font-bold text-orange-600">
-                      {store.todayRevenue.toLocaleString()}원
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">오늘 주문</span>
-                    <span className="text-lg font-semibold text-blue-600">
-                      {store.todayOrders}건
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* 관리 메뉴 */}
-        <div className="max-w-6xl mx-auto">
-          <h2 className="text-3xl font-bold text-gray-900 mb-6">🔧 본사 관리 메뉴</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* 매장 관리 */}
-            <Link href="/orders" className="group">
-              <div className="bg-white rounded-xl shadow-lg p-8 hover:shadow-xl transition-all hover:-translate-y-1">
-                <div className="text-5xl mb-4">🏪</div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-2 group-hover:text-orange-600 transition-colors">
-                  매장 관리
-                </h2>
-                <p className="text-gray-600">
-                  전체 매장 정보 및 운영 관리
-                </p>
-              </div>
-            </Link>
-
-            {/* 통합 매출 */}
-            <Link href="/sales" className="group">
-              <div className="bg-white rounded-xl shadow-lg p-8 hover:shadow-xl transition-all hover:-translate-y-1">
-                <div className="text-5xl mb-4">💰</div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-2 group-hover:text-orange-600 transition-colors">
-                  통합 매출
-                </h2>
-                <p className="text-gray-600">
-                  전체 매장 매출 분석 및 비교
-                </p>
-              </div>
-            </Link>
-
-            {/* 메뉴 관리 */}
-            <Link href="/menu" className="group">
-              <div className="bg-white rounded-xl shadow-lg p-8 hover:shadow-xl transition-all hover:-translate-y-1">
-                <div className="text-5xl mb-4">🍖</div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-2 group-hover:text-orange-600 transition-colors">
-                  표준 메뉴
-                </h2>
-                <p className="text-gray-600">
-                  전체 매장 표준 메뉴 관리
-                </p>
-              </div>
-            </Link>
-
-            {/* 재고 관리 */}
-            <Link href="/inventory" className="group">
-              <div className="bg-white rounded-xl shadow-lg p-8 hover:shadow-xl transition-all hover:-translate-y-1">
-                <div className="text-5xl mb-4">📦</div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-2 group-hover:text-orange-600 transition-colors">
-                  재고 현황
-                </h2>
-                <p className="text-gray-600">
-                  매장별 재고 현황 및 발주 관리
-                </p>
-              </div>
-            </Link>
-
-            {/* 직원 관리 */}
-            <Link href="/customers" className="group">
-              <div className="bg-white rounded-xl shadow-lg p-8 hover:shadow-xl transition-all hover:-translate-y-1">
-                <div className="text-5xl mb-4">👥</div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-2 group-hover:text-orange-600 transition-colors">
-                  직원 관리
-                </h2>
-                <p className="text-gray-600">
-                  전체 직원 계정 및 권한 관리
-                </p>
-              </div>
-            </Link>
-
-            {/* 설정 */}
-            <Link href="/settings" className="group">
-              <div className="bg-white rounded-xl shadow-lg p-8 hover:shadow-xl transition-all hover:-translate-y-1">
-                <div className="text-5xl mb-4">⚙️</div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-2 group-hover:text-orange-600 transition-colors">
-                  시스템 설정
-                </h2>
-                <p className="text-gray-600">
-                  본사 시스템 및 정책 설정
-                </p>
-              </div>
-            </Link>
-          </div>
+        {/* 재고 목록 */}
+        <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+          <table className="w-full">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">품목명</th>
+                <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">현재 수량</th>
+                <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">단위</th>
+                <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">최소 수량</th>
+                <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">상태</th>
+                <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">마지막 입고</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {items.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                    등록된 재고가 없습니다.
+                  </td>
+                </tr>
+              ) : (
+                items.map((item) => (
+                  <tr key={item.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 text-gray-900 font-medium">{item.itemName}</td>
+                    <td className="px-6 py-4 text-center text-gray-900 font-bold">
+                      {item.quantity}
+                    </td>
+                    <td className="px-6 py-4 text-center text-gray-600">{item.unit}</td>
+                    <td className="px-6 py-4 text-center text-gray-600">{item.minQuantity}</td>
+                    <td className="px-6 py-4 text-center">
+                      {item.quantity <= item.minQuantity ? (
+                        <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm font-semibold">
+                          부족
+                        </span>
+                      ) : (
+                        <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-semibold">
+                          정상
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 text-center text-gray-600 text-sm">
+                      {item.lastRestocked
+                        ? new Date(item.lastRestocked).toLocaleDateString('ko-KR')
+                        : '없음'}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

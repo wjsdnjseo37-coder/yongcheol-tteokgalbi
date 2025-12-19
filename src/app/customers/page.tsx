@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 
 interface Customer {
@@ -9,71 +9,62 @@ interface Customer {
   phone: string;
   totalOrders: number;
   totalSpent: number;
-  lastVisit: string;
+  email?: string;
   address?: string;
+  createdAt: string;
 }
 
 export default function CustomersPage() {
-  const [customers, setCustomers] = useState<Customer[]>([
-    {
-      id: '1',
-      name: '김철수',
-      phone: '010-1234-5678',
-      totalOrders: 15,
-      totalSpent: 450000,
-      lastVisit: '2025-12-17',
-      address: '서울시 강남구'
-    },
-    {
-      id: '2',
-      name: '이영희',
-      phone: '010-2345-6789',
-      totalOrders: 8,
-      totalSpent: 240000,
-      lastVisit: '2025-12-16',
-      address: '서울시 서초구'
-    },
-    {
-      id: '3',
-      name: '박민수',
-      phone: '010-3456-7890',
-      totalOrders: 12,
-      totalSpent: 360000,
-      lastVisit: '2025-12-15',
-      address: '서울시 송파구'
-    }
-  ]);
-
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [newCustomer, setNewCustomer] = useState({
     name: '',
     phone: '',
+    email: '',
     address: ''
   });
 
-  const addCustomer = () => {
+  useEffect(() => {
+    fetchCustomers();
+  }, []);
+
+  const fetchCustomers = async () => {
+    try {
+      const response = await fetch('/api/customers');
+      if (response.ok) {
+        const data = await response.json();
+        setCustomers(data);
+      }
+    } catch (error) {
+      console.error('고객 로드 실패:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const addCustomer = async () => {
     if (!newCustomer.name || !newCustomer.phone) {
       alert('이름과 전화번호를 입력해주세요.');
       return;
     }
 
-    const customer: Customer = {
-      id: String(customers.length + 1),
-      ...newCustomer,
-      totalOrders: 0,
-      totalSpent: 0,
-      lastVisit: new Date().toISOString().split('T')[0]
-    };
+    try {
+      const response = await fetch('/api/customers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newCustomer)
+      });
 
-    setCustomers([...customers, customer]);
-    setNewCustomer({ name: '', phone: '', address: '' });
-    setIsAddingNew(false);
-  };
-
-  const deleteCustomer = (id: string) => {
-    if (confirm('정말 삭제하시겠습니까?')) {
-      setCustomers(customers.filter(c => c.id !== id));
+      if (response.ok) {
+        await fetchCustomers();
+        setNewCustomer({ name: '', phone: '', email: '', address: '' });
+        setIsAddingNew(false);
+      }
+    } catch (error) {
+      console.error('고객 추가 실패:', error);
+      alert('고객 추가에 실패했습니다.');
     }
   };
 
@@ -83,7 +74,15 @@ export default function CustomersPage() {
 
   const totalCustomers = customers.length;
   const totalRevenue = customers.reduce((sum, c) => sum + c.totalSpent, 0);
-  const averageSpent = totalRevenue / totalCustomers;
+  const averageSpent = totalCustomers > 0 ? totalRevenue / totalCustomers : 0;
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-xl text-gray-600">로딩 중...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -127,7 +126,7 @@ export default function CustomersPage() {
         {isAddingNew && (
           <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
             <h2 className="text-2xl font-bold mb-4">새 고객 등록</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <input
                 type="text"
                 placeholder="고객명"
@@ -140,6 +139,13 @@ export default function CustomersPage() {
                 placeholder="전화번호 (010-1234-5678)"
                 value={newCustomer.phone}
                 onChange={(e) => setNewCustomer({ ...newCustomer, phone: e.target.value })}
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              />
+              <input
+                type="email"
+                placeholder="이메일 (선택)"
+                value={newCustomer.email}
+                onChange={(e) => setNewCustomer({ ...newCustomer, email: e.target.value })}
                 className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
               />
               <input
@@ -178,31 +184,20 @@ export default function CustomersPage() {
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
                     <h3 className="text-xl font-bold text-gray-900">{customer.name}</h3>
-                    <span className="text-sm bg-orange-100 text-orange-800 px-3 py-1 rounded-full font-semibold">
-                      VIP
-                    </span>
+                    {customer.totalOrders > 10 && (
+                      <span className="text-sm bg-orange-100 text-orange-800 px-3 py-1 rounded-full font-semibold">
+                        VIP
+                      </span>
+                    )}
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-gray-600">
                     <p>📞 {customer.phone}</p>
+                    {customer.email && <p>📧 {customer.email}</p>}
                     {customer.address && <p>📍 {customer.address}</p>}
                     <p>주문 횟수: <strong className="text-gray-900">{customer.totalOrders}회</strong></p>
                     <p>총 구매액: <strong className="text-orange-600">{customer.totalSpent.toLocaleString()}원</strong></p>
-                    <p className="col-span-2 text-sm">마지막 방문: {customer.lastVisit}</p>
+                    <p className="col-span-2 text-sm">가입일: {new Date(customer.createdAt).toLocaleDateString('ko-KR')}</p>
                   </div>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => alert('고객 상세 정보 기능 개발 예정')}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    상세
-                  </button>
-                  <button
-                    onClick={() => deleteCustomer(customer.id)}
-                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                  >
-                    삭제
-                  </button>
                 </div>
               </div>
             </div>
@@ -211,7 +206,7 @@ export default function CustomersPage() {
 
         {filteredCustomers.length === 0 && (
           <div className="text-center py-12 text-gray-500">
-            검색 결과가 없습니다.
+            {searchTerm ? '검색 결과가 없습니다.' : '등록된 고객이 없습니다.'}
           </div>
         )}
       </div>
