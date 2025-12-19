@@ -11,126 +11,93 @@ export default function Home() {
     return () => clearInterval(timer);
   }, []);
 
+  const stores = [
+    { 
+      id: '1', 
+      name: '강남점', 
+      todayRevenue: 1250000, 
+      todayOrders: 58, 
+      status: 'open',
+      pendingOrders: 3,
+      avgOrderValue: 21552,
+      peakHour: '12:00-13:00',
+      lowStock: 2
+    },
+    { 
+      id: '2', 
+      name: '홍대점', 
+      todayRevenue: 980000, 
+      todayOrders: 45, 
+      status: 'open',
+      pendingOrders: 5,
+      avgOrderValue: 21778,
+      peakHour: '18:00-19:00',
+      lowStock: 1
+    },
+    { 
+      id: '3', 
+      name: '신촌점', 
+      todayRevenue: 1100000, 
+      todayOrders: 52, 
+      status: 'open',
+      pendingOrders: 2,
+      avgOrderValue: 21154,
+      peakHour: '19:00-20:00',
+      lowStock: 0
+    },
+    { 
+      id: '4', 
+      name: '잠실점', 
+      todayRevenue: 850000, 
+      todayOrders: 38, 
+      status: 'open',
+      pendingOrders: 1,
+      avgOrderValue: 22368,
+      peakHour: '12:30-13:30',
+      lowStock: 3
+    },
+  ];
+
+  const recentOrders = [
+    { id: 'PO-015', store: '강남점', items: '돼지고기 30kg', amount: 510000, status: 'pending', time: '5분 전' },
+    { id: 'PO-014', store: '홍대점', items: '포장용기 200개', amount: 120000, status: 'approved', time: '12분 전' },
+    { id: 'PO-013', store: '신촌점', items: '양파 20kg, 간장 5L', amount: 280000, status: 'shipping', time: '25분 전' },
+  ];
+
+  const totalRevenue = stores.reduce((sum, store) => sum + store.todayRevenue, 0);
+  const totalOrders = stores.reduce((sum, store) => sum + store.todayOrders, 0);
+  const pendingOrdersCount = stores.reduce((sum, store) => sum + store.pendingOrders, 0);
+  const lowStockCount = stores.reduce((sum, store) => sum + store.lowStock, 0);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-50">
       <div className="container mx-auto px-4 py-8">
-        <header className="mb-12 text-center">
-          <div className="mb-6">
-            <h1 className="text-5xl font-bold text-gray-900 mb-4">
-              🍖 용철떡갈비 POS 시스템
-            </h1>
-            <p className="text-xl text-gray-600">
-              매장 운영을 위한 통합 관리 시스템
-            </p>
-          </div>
-          <div className="text-3xl font-bold text-orange-600">
-            {currentTime.toLocaleTimeString('ko-KR')}
-          </div>
-          <div className="text-sm text-gray-600">
-            {currentTime.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' })}
+        <header className="mb-8">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-4xl font-bold text-gray-900 mb-2">
+                🏢 용철떡갈비 본사 실시간 대시보드
+              </h1>
+              <p className="text-lg text-gray-600">
+                전체 매장을 한눈에 관리하고 모니터링하세요
+              </p>
+            </div>
+            <div className="text-right">
+              <div className="text-3xl font-bold text-gray-900">
+                {currentTime.toLocaleTimeString('ko-KR')}
+              </div>
+              <div className="text-sm text-gray-600">
+                {currentTime.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' })}
+              </div>
+            </div>
           </div>
         </header>
 
-        {/* 메인 메뉴 */}
-        <div className="max-w-6xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* 메뉴 관리 */}
-            <Link href="/menu" className="group">
-              <div className="bg-white rounded-xl shadow-lg p-8 hover:shadow-xl transition-all hover:-translate-y-1">
-                <div className="text-5xl mb-4">🍽️</div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-2 group-hover:text-orange-600 transition-colors">
-                  메뉴 관리
-                </h2>
-                <p className="text-gray-600">
-                  메뉴 추가, 수정 및 가격 관리
-                </p>
-              </div>
-            </Link>
-
-            {/* 주문 관리 */}
-            <Link href="/orders" className="group">
-              <div className="bg-white rounded-xl shadow-lg p-8 hover:shadow-xl transition-all hover:-translate-y-1">
-                <div className="text-5xl mb-4">📋</div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-2 group-hover:text-orange-600 transition-colors">
-                  주문 관리
-                </h2>
-                <p className="text-gray-600">
-                  주문 접수 및 처리 관리
-                </p>
-              </div>
-            </Link>
-
-            {/* 재고 관리 */}
-            <Link href="/inventory" className="group">
-              <div className="bg-white rounded-xl shadow-lg p-8 hover:shadow-xl transition-all hover:-translate-y-1">
-                <div className="text-5xl mb-4">📦</div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-2 group-hover:text-orange-600 transition-colors">
-                  재고 관리
-                </h2>
-                <p className="text-gray-600">
-                  재고 현황 및 입고 관리
-                </p>
-              </div>
-            </Link>
-
-            {/* 고객 관리 */}
-            <Link href="/customers" className="group">
-              <div className="bg-white rounded-xl shadow-lg p-8 hover:shadow-xl transition-all hover:-translate-y-1">
-                <div className="text-5xl mb-4">👥</div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-2 group-hover:text-orange-600 transition-colors">
-                  고객 관리
-                </h2>
-                <p className="text-gray-600">
-                  고객 정보 및 주문 이력 관리
-                </p>
-              </div>
-            </Link>
-
-            {/* 매출 통계 */}
-            <Link href="/sales" className="group">
-              <div className="bg-white rounded-xl shadow-lg p-8 hover:shadow-xl transition-all hover:-translate-y-1">
-                <div className="text-5xl mb-4">💰</div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-2 group-hover:text-orange-600 transition-colors">
-                  매출 통계
-                </h2>
-                <p className="text-gray-600">
-                  일별 매출 및 통계 분석
-                </p>
-              </div>
-            </Link>
-
-            {/* 설정 */}
-            <Link href="/settings" className="group">
-              <div className="bg-white rounded-xl shadow-lg p-8 hover:shadow-xl transition-all hover:-translate-y-1">
-                <div className="text-5xl mb-4">⚙️</div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-2 group-hover:text-orange-600 transition-colors">
-                  설정
-                </h2>
-                <p className="text-gray-600">
-                  시스템 설정 및 관리
-                </p>
-              </div>
-            </Link>
-          </div>
-        </div>
-
-        {/* 빠른 시작 가이드 */}
-        <div className="max-w-6xl mx-auto mt-12">
-          <div className="bg-white rounded-xl shadow-lg p-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">🚀 빠른 시작 가이드</h2>
-            <div className="space-y-3 text-gray-700">
-              <p><strong>1. 메뉴 관리</strong> - 판매할 메뉴를 먼저 등록하세요</p>
-              <p><strong>2. 주문 관리</strong> - 고객 주문을 접수하고 처리하세요</p>
-              <p><strong>3. 재고 관리</strong> - 재고를 등록하고 관리하세요</p>
-              <p><strong>4. 고객 관리</strong> - 단골 고객 정보를 관리하세요</p>
-              <p><strong>5. 매출 통계</strong> - 일별 매출을 확인하세요</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+        {/* 실시간 통계 */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-semibold opacity-90">전체 매장</h3>
               <span className="text-2xl">🏪</span>
             </div>
             <p className="text-4xl font-bold mb-1">{stores.length}개</p>
