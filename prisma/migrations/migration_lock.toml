@@ -1,0 +1,12 @@
+{
+  "version": "7.2.0",
+  "steps": {
+    "create": [
+      {
+        "id": "20251219000000_init",
+        "prevId": "00000000000000",
+        "checksum": "initial_migration"
+      }
+    ]
+  }
+}
