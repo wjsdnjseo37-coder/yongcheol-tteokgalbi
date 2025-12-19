@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 
 interface MenuItem {
@@ -8,20 +8,13 @@ interface MenuItem {
   name: string;
   category: string;
   price: number;
-  description: string;
-  isAvailable: boolean;
+  description?: string;
+  available: boolean;
 }
 
 export default function MenuPage() {
-  const [menuItems, setMenuItems] = useState<MenuItem[]>([
-    { id: '1', name: '떡갈비 정식', category: '정식', price: 15000, description: '떡갈비 + 밥 + 된장찌개 + 반찬', isAvailable: true },
-    { id: '2', name: '떡갈비 단품', category: '단품', price: 12000, description: '떡갈비만 제공', isAvailable: true },
-    { id: '3', name: '떡갈비 세트', category: '세트', price: 18000, description: '떡갈비 + 김치찌개 + 계란찜', isAvailable: true },
-    { id: '4', name: '된장찌개', category: '찌개', price: 7000, description: '구수한 된장찌개', isAvailable: true },
-    { id: '5', name: '김치찌개', category: '찌개', price: 7000, description: '칼칼한 김치찌개', isAvailable: true },
-    { id: '6', name: '콜라', category: '음료', price: 2000, description: '시원한 콜라', isAvailable: true },
-    { id: '7', name: '사이다', category: '음료', price: 2000, description: '시원한 사이다', isAvailable: true }
-  ]);
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -32,26 +25,52 @@ export default function MenuPage() {
     description: ''
   });
 
-  const addMenuItem = () => {
+  // API에서 메뉴 데이터 가져오기
+  useEffect(() => {
+    fetchMenuItems();
+  }, []);
+
+  const fetchMenuItems = async () => {
+    try {
+      const response = await fetch('/api/menu');
+      if (response.ok) {
+        const data = await response.json();
+        setMenuItems(data);
+      }
+    } catch (error) {
+      console.error('메뉴 로드 실패:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const addMenuItem = async () => {
     if (!newItem.name || newItem.price <= 0) {
       alert('메뉴명과 가격을 입력해주세요.');
       return;
     }
 
-    const item: MenuItem = {
-      id: String(menuItems.length + 1),
-      ...newItem,
-      isAvailable: true
-    };
+    try {
+      const response = await fetch('/api/menu', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...newItem, available: true })
+      });
 
-    setMenuItems([...menuItems, item]);
-    setNewItem({ name: '', category: '단품', price: 0, description: '' });
-    setIsAddingNew(false);
+      if (response.ok) {
+        await fetchMenuItems();
+        setNewItem({ name: '', category: '단품', price: 0, description: '' });
+        setIsAddingNew(false);
+      }
+    } catch (error) {
+      console.error('메뉴 추가 실패:', error);
+      alert('메뉴 추가에 실패했습니다.');
+    }
   };
 
   const toggleAvailability = (id: string) => {
     setMenuItems(menuItems.map(item => 
-      item.id === id ? { ...item, isAvailable: !item.isAvailable } : item
+      item.id === id ? { ...item, available: !item.available } : item
     ));
   };
 
@@ -67,6 +86,14 @@ export default function MenuPage() {
   const filteredItems = selectedCategory === '전체' 
     ? menuItems 
     : menuItems.filter(item => item.category === selectedCategory);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-xl text-gray-600">로딩 중...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -154,7 +181,7 @@ export default function MenuPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredItems.map((item) => (
             <div key={item.id} className="bg-white rounded-xl shadow-lg p-6 relative">
-              {!item.isAvailable && (
+              {!item.available && (
                 <div className="absolute top-4 right-4 bg-red-500 text-white px-3 py-1 rounded-full text-sm font-semibold">
                   품절
                 </div>
@@ -166,7 +193,7 @@ export default function MenuPage() {
                     {item.category}
                   </span>
                 </div>
-                <p className="text-gray-600 text-sm mb-2">{item.description}</p>
+                <p className="text-gray-600 text-sm mb-2">{item.description || '설명 없음'}</p>
                 <p className="text-2xl font-bold text-orange-600">
                   {item.price.toLocaleString()}원
                 </p>

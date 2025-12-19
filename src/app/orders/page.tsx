@@ -1,33 +1,31 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 
-type OrderStatus = 'pending' | 'approved' | 'preparing' | 'shipping' | 'completed' | 'cancelled';
+type OrderStatus = 'pending' | 'preparing' | 'completed' | 'cancelled';
 
-interface StoreOrder {
+interface Order {
   id: string;
   orderNumber: string;
-  storeName: string;
-  storeId: string;
-  items: string;
   totalAmount: number;
   status: OrderStatus;
-  requestDate: string;
-  deliveryDate?: string;
+  tableNumber?: string;
+  notes?: string;
+  createdAt: string;
+  items: {
+    id: string;
+    quantity: number;
+    price: number;
+    menuItem: {
+      name: string;
+    };
+  }[];
 }
 
 export default function OrdersPage() {
-  const [orders, setOrders] = useState<StoreOrder[]>([
-    {
-      id: '1',
-      orderNumber: 'PO-001',
-      storeName: '강남점',
-      storeId: '1',
-      items: '돼지고기 50kg, 양파 30kg, 간장 10L',
-      totalAmount: 850000,
-      status: 'pending',
-      requestDate: '2025-12-18',
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
     },
     {
       id: '2',
