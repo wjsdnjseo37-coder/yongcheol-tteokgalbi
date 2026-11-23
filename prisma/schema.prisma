@@ -150,6 +150,3 @@ model DailySales {
   @@index([storeId])
   @@index([date])
 }
-  
-  @@index([date])
-}

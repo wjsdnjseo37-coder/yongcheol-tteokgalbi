@@ -1,9 +1,12 @@
-import { NextAuthOptions } from "next-auth"
+import NextAuth from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
 import bcrypt from "bcryptjs"
 import { prisma } from "./prisma"
 
-export const authOptions: NextAuthOptions = {
+// NextAuth v5(Auth.js) 설정.
+// 라우트 핸들러에서는 `auth()` 로 서버 세션을 읽고,
+// /api/auth/[...nextauth] 는 아래 handlers 를 그대로 내보낸다.
+export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
     CredentialsProvider({
       name: "Credentials",
@@ -12,12 +15,15 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" }
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
+        const email = typeof credentials?.email === "string" ? credentials.email.trim() : ""
+        const password = typeof credentials?.password === "string" ? credentials.password : ""
+
+        if (!email || !password) {
           return null
         }
 
         const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
+          where: { email },
           include: { store: true }
         })
 
@@ -25,10 +31,7 @@ export const authOptions: NextAuthOptions = {
           return null
         }
 
-        const isPasswordValid = await bcrypt.compare(
-          credentials.password,
-          user.password
-        )
+        const isPasswordValid = await bcrypt.compare(password, user.password)
 
         if (!isPasswordValid) {
           return null
@@ -56,9 +59,9 @@ export const authOptions: NextAuthOptions = {
     },
     async session({ session, token }) {
       if (session.user) {
-        session.user.id = token.sub!
-        session.user.role = token.role as string
-        session.user.storeId = token.storeId as string | null
+        session.user.id = token.sub as string
+        session.user.role = (token.role as string | undefined) ?? "store"
+        session.user.storeId = (token.storeId as string | null | undefined) ?? null
         session.user.storeName = token.storeName as string | undefined
       }
       return session
@@ -70,5 +73,6 @@ export const authOptions: NextAuthOptions = {
   session: {
     strategy: "jwt",
   },
-  secret: process.env.NEXTAUTH_SECRET,
-}
+  secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
+  trustHost: true,
+})
